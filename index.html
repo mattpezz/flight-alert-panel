@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Flight price alert</title>
+<style>
+  body{font-family:system-ui,sans-serif;max-width:420px;margin:2rem auto;padding:0 1rem}
+  label{display:block;margin-top:1rem;font-weight:600}
+  input{width:100%;padding:.6rem;margin-top:.3rem;box-sizing:border-box}
+  button{margin-top:1.5rem;padding:.8rem;width:100%;font-size:1rem;cursor:pointer}
+</style>
+</head>
+<body>
+<h1>✈️ Flight price alert</h1>
+<p>Get one email when a round trip drops below your budget.</p>
+<form id="f">
+  <label>From (airport code)<input id="origin" maxlength="3" placeholder="MAD" required></label>
+  <label>To (airport code)<input id="destination" maxlength="3" placeholder="CPH" required></label>
+  <label>Departure<input id="depart" type="date" required></label>
+  <label>Return<input id="ret" type="date" required></label>
+  <label>Max total price (€)<input id="price" type="number" min="20" max="5000" required></label>
+  <label>Your email<input id="email" type="email" required></label>
+  <label><input id="nonstop" type="checkbox" checked style="width:auto"> Nonstop flights only</label>
+  <button>Create alert</button>
+</form>
+<p id="msg"></p>
+<script>
+const API = "https://YOUR-PROJECT.supabase.co";
+const KEY = "YOUR-PUBLIC-KEY";
+const $ = id => document.getElementById(id);
+const today = new Date().toISOString().slice(0, 10);
+$("depart").min = today; $("ret").min = today;
+
+$("f").addEventListener("submit", async e => {
+  e.preventDefault();
+  const body = {
+    origin: $("origin").value.trim().toUpperCase(),
+    destination: $("destination").value.trim().toUpperCase(),
+    depart_date: $("depart").value,
+    return_date: $("ret").value,
+    max_price: Number($("price").value),
+    email: $("email").value.trim(),
+    nonstop: $("nonstop").checked
+  };
+  if (body.return_date <= body.depart_date) {
+    $("msg").textContent = "The return date must be after the departure date.";
+    return;
+  }
+  $("msg").textContent = "Saving…";
+  try {
+    const r = await fetch(API + "/rest/v1/alerts", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", apikey: KEY, Prefer: "return=minimal" },
+      body: JSON.stringify(body)
+    });
+    $("msg").textContent = r.ok
+      ? "✅ Alert created! You'll get one email when the price drops below your budget."
+      : "❌ Could not save. The alert limit may be reached, or check the airport codes and dates.";
+    if (r.ok) $("f").reset();
+  } catch { $("msg").textContent = "❌ Network error."; }
+});
+</script>
+</body>
+</html>
